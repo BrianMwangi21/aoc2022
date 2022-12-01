@@ -33,7 +33,7 @@ func readFile(filename string) []string {
 	return data
 }
 
-func partOne(data []string) int {
+func getTotals(data []string) []int {
 	var totals []int
 	sum := 0
 
@@ -49,27 +49,16 @@ func partOne(data []string) int {
 
 	totals = append(totals, sum)
 	sort.Ints(totals)
+	return totals
+}
 
+func partOne(data []string) int {
+	totals := getTotals(data)
 	return totals[len(totals)-1]
 }
 
 func partTwo(data []string) int {
-	var totals []int
-	sum := 0
-
-	for d := range data {
-		if data[d] != "" {
-			calories, _ := strconv.Atoi(data[d])
-			sum += calories
-		} else {
-			totals = append(totals, sum)
-			sum = 0
-		}
-	}
-
-	totals = append(totals, sum)
-	sort.Ints(totals)
-
+	totals := getTotals(data)
 	return totals[len(totals)-1] + totals[len(totals)-2] + totals[len(totals)-3]
 }
 
