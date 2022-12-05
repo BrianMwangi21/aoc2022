@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode"
@@ -34,142 +35,100 @@ func readFile(filename string) []string {
 	return data
 }
 
-func splitCratesAndProcedures(data []string) ([]string, []string) {
+func getCranesAndProcedures(data []string) (map[int][]string, map[int][]int) {
 	var (
-		crates     []string
-		procedures []string
+		tmp_crates     []string
+		tmp_procedures []string
 	)
 
-	for d := range data {
-		if len(data[d]) == 0 {
-			crates = data[:d]
-			procedures = data[d+1:]
+	for i, d := range data {
+		if len(d) == 0 {
+			tmp_crates = data[:i-1]     // Don't really need the keys
+			tmp_procedures = data[i+1:] // Don't really need the blank space
 		}
+	}
+
+	// Crates
+	crates := map[int][]string{}
+
+	for _, d := range tmp_crates {
+		for i, l := range d {
+			if unicode.IsLetter(l) {
+				crates[i] = append(crates[i], string(l))
+			}
+		}
+	}
+
+	for i, c := range crates {
+		crates[i] = reverseCrate(c)
+	}
+
+	// Procedures
+	procedures := map[int][]int{}
+
+	for i, p := range tmp_procedures {
+		split_p := strings.Split(p, " ")
+		num, _ := strconv.Atoi(split_p[1])
+		src, _ := strconv.Atoi(split_p[3])
+		dest, _ := strconv.Atoi(split_p[5])
+		procedures[i] = append(procedures[i], num, src, dest)
 	}
 
 	return crates, procedures
 }
 
-func getIndividualCrates(data []string) []string {
-	crateHolder := make([]string, 100)
-
-	for _, d := range data[:len(data)-1] {
-		for i, l := range d {
-			if unicode.IsLetter(l) {
-				crateHolder[i] += string(l)
-			}
-		}
+func reverseCrate(data []string) []string {
+	var reversed []string
+	for i := len(data) - 1; i >= 0; i-- {
+		reversed = append(reversed, data[i])
 	}
-
-	var actualCrateHolder []string
-	for _, c := range crateHolder {
-		if len(c) != 0 {
-			actualCrateHolder = append(actualCrateHolder, reverseCrate(c))
-		}
-	}
-
-	return actualCrateHolder
-}
-
-func reverseCrate(crate string) string {
-	var reversed string
-
-	for i := len(crate) - 1; i >= 0; i-- {
-		reversed += string(crate[i])
-	}
-
 	return reversed
 }
 
-func getIndividualProcedure(data string) (int, int, int) {
-	moves := strings.Split(data, " ")
-	num, _ := strconv.Atoi(moves[1])
-	src, _ := strconv.Atoi(moves[3])
-	dest, _ := strconv.Atoi(moves[5])
-
-	return num, src, dest
+func orderCrates(data map[int][]string) ([]int, map[int][]string) {
+	var keys []int
+	for key := range data {
+		keys = append(keys, key)
+	}
+	sort.Ints(keys)
+	ordered := map[int][]string{}
+	for i, key := range keys {
+		ordered[i] = data[key]
+	}
+	return keys, ordered
 }
 
-func printCrate(data []string) {
-	for _, d := range data {
-		fmt.Println(d)
+func orderProcedures(data map[int][]int) ([]int, map[int][]int) {
+	var keys []int
+	for key := range data {
+		keys = append(keys, key)
 	}
-	fmt.Println("====")
+	sort.Ints(keys)
+	ordered := map[int][]int{}
+	for i, key := range keys {
+		ordered[i] = data[key]
+	}
+	return keys, ordered
 }
 
 func partOne(data []string) string {
-	crates, procedures := splitCratesAndProcedures(data)
-	var topCrates string
+	var result string
 
-	crateHolder := getIndividualCrates(crates)
+	allCrates, allProcedures := getCranesAndProcedures(data)
 
-	for _, p := range procedures {
-		num, src, dest := getIndividualProcedure(p)
-		var tmp string
+	_, orderedCrates := orderCrates(allCrates)
+	_, orderedProcedures := orderProcedures(allProcedures)
 
-		src_crate := crateHolder[src-1]
-		dest_crate := crateHolder[dest-1]
+	fmt.Println(orderedCrates)
+	fmt.Println(orderedProcedures)
 
-		if len(src_crate)-num >= 0 {
-			tmp = src_crate[len(src_crate)-num:]
-		}
-
-		src_crate = strings.ReplaceAll(src_crate, tmp, "")
-		dest_crate += reverseCrate(tmp)
-
-		crateHolder[src-1] = src_crate
-		crateHolder[dest-1] = dest_crate
-
-		// printCrate(crateHolder)
-	}
-
-	for _, c := range crateHolder {
-		if len(c) > 0 {
-			topCrates += string(c[len(c)-1])
-		}
-	}
-
-	return topCrates
-}
-
-func partTwo(data []string) string {
-	crates, procedures := splitCratesAndProcedures(data)
-	var topCrates string
-
-	crateHolder := getIndividualCrates(crates)
-
-	for _, p := range procedures {
-		num, src, dest := getIndividualProcedure(p)
-		var tmp string
-
-		src_crate := crateHolder[src-1]
-		dest_crate := crateHolder[dest-1]
-
-		if len(src_crate)-num >= 0 {
-			tmp = src_crate[len(src_crate)-num:]
-		}
-
-		src_crate = strings.ReplaceAll(src_crate, tmp, "")
-		dest_crate += tmp
-
-		crateHolder[src-1] = src_crate
-		crateHolder[dest-1] = dest_crate
-
-		// printCrate(crateHolder)
-	}
-
-	for _, c := range crateHolder {
-		if len(c) > 0 {
-			topCrates += string(c[len(c)-1])
-		}
-	}
-
-	return topCrates
+	return result
 }
 
 func main() {
-	data := readFile("input.txt")
+	data := readFile("input.test.txt")
 
-	fmt.Println(partOne(data)) // SHMSDGZVC
-	fmt.Println(partTwo(data)) // VRZGHDFBQ
+	// Part One : SHMSDGZVC
+	// Part Two : VRZGHDFBQ
+	fmt.Println(partOne(data))
 }
