@@ -93,7 +93,7 @@ func orderCrates(data map[int][]string) ([]int, map[int][]string) {
 	sort.Ints(keys)
 	ordered := map[int][]string{}
 	for i, key := range keys {
-		ordered[i] = data[key]
+		ordered[i+1] = data[key]
 	}
 	return keys, ordered
 }
