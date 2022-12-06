@@ -111,24 +111,45 @@ func orderProcedures(data map[int][]int) ([]int, map[int][]int) {
 	return keys, ordered
 }
 
-func partOne(data []string) string {
+func partOneOrTwo(data []string, toReverse bool) string {
 	var result string
 
 	allCrates, allProcedures := getCranesAndProcedures(data)
 
 	_, orderedCrates := orderCrates(allCrates)
-	_, orderedProcedures := orderProcedures(allProcedures)
+	procedureKeys, orderedProcedures := orderProcedures(allProcedures)
 
-	fmt.Println(orderedCrates)
-	fmt.Println(orderedProcedures)
+	for key := range procedureKeys {
+		num := orderedProcedures[key][0]
+		src_crate := orderedCrates[orderedProcedures[key][1]]
+		dest_crate := orderedCrates[orderedProcedures[key][2]]
+
+		tmp := src_crate[len(src_crate)-num:]
+
+		if toReverse {
+			tmp = reverseCrate(tmp)
+		}
+
+		src_crate = src_crate[:len(src_crate)-num]
+		dest_crate = append(dest_crate, tmp...)
+
+		orderedCrates[orderedProcedures[key][1]] = src_crate
+		orderedCrates[orderedProcedures[key][2]] = dest_crate
+	}
+
+	crateKeys, orderedCrates := orderCrates(orderedCrates)
+
+	for key := range crateKeys {
+		crate := orderedCrates[crateKeys[key]]
+		result += string(crate[len(crate)-1])
+	}
 
 	return result
 }
 
 func main() {
-	data := readFile("input.test.txt")
+	data := readFile("input.txt")
 
-	// Part One : SHMSDGZVC
-	// Part Two : VRZGHDFBQ
-	fmt.Println(partOne(data))
+	fmt.Println(partOneOrTwo(data, true))
+	fmt.Println(partOneOrTwo(data, false))
 }
