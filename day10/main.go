@@ -53,7 +53,7 @@ func printScreen(screen []string) {
 }
 
 func changePointInScreen(screen string, pointToCheck int) string {
-	if pointToCheck > 0 && pointToCheck <= len(screen) {
+	if pointToCheck > -1 && pointToCheck <= len(screen) {
 		tmp := []rune(screen)
 		tmp[pointToCheck] = '#'
 		screen = string(tmp)
