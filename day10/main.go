@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -52,61 +53,23 @@ func printScreen(screen []string) {
 }
 
 func changePointInScreen(screen string, pointToCheck int) string {
-	tmp := []rune(screen)
-	tmp[pointToCheck] = '#'
-	screen = string(tmp)
+	if pointToCheck > 0 && pointToCheck <= len(screen) {
+		tmp := []rune(screen)
+		tmp[pointToCheck] = '#'
+		screen = string(tmp)
+	}
 	return screen
 }
 
 func checkToDraw(screen []string, currentCycle int, X int) []string {
-	if currentCycle <= 40 {
-		pointToCheck := currentCycle - 1
-		Xlower := X - 1
-		XUpper := X + 1
+	rowToBe := int(math.Floor(float64(currentCycle) / 40))
 
-		if pointToCheck >= Xlower && pointToCheck <= XUpper {
-			screen[0] = changePointInScreen(screen[0], pointToCheck)
-		}
-	} else if currentCycle <= 80 {
-		pointToCheck := currentCycle - 41
-		Xlower := X - 1
-		XUpper := X + 1
+	pointToCheck := currentCycle - (rowToBe * 40) - 1
+	Xlower := X - 1
+	XUpper := X + 1
 
-		if pointToCheck >= Xlower && pointToCheck <= XUpper {
-			screen[1] = changePointInScreen(screen[1], pointToCheck)
-		}
-	} else if currentCycle <= 120 {
-		pointToCheck := currentCycle - 81
-		Xlower := X - 1
-		XUpper := X + 1
-
-		if pointToCheck >= Xlower && pointToCheck <= XUpper {
-			screen[2] = changePointInScreen(screen[2], pointToCheck)
-		}
-	} else if currentCycle <= 160 {
-		pointToCheck := currentCycle - 121
-		Xlower := X - 1
-		XUpper := X + 1
-
-		if pointToCheck >= Xlower && pointToCheck <= XUpper {
-			screen[3] = changePointInScreen(screen[3], pointToCheck)
-		}
-	} else if currentCycle <= 200 {
-		pointToCheck := currentCycle - 161
-		Xlower := X - 1
-		XUpper := X + 1
-
-		if pointToCheck >= Xlower && pointToCheck <= XUpper {
-			screen[4] = changePointInScreen(screen[4], pointToCheck)
-		}
-	} else if currentCycle <= 240 {
-		pointToCheck := currentCycle - 201
-		Xlower := X - 1
-		XUpper := X + 1
-
-		if pointToCheck >= Xlower && pointToCheck <= XUpper {
-			screen[5] = changePointInScreen(screen[5], pointToCheck)
-		}
+	if pointToCheck >= Xlower && pointToCheck <= XUpper {
+		screen[rowToBe] = changePointInScreen(screen[rowToBe], pointToCheck)
 	}
 
 	return screen
@@ -174,7 +137,6 @@ func partTwo(data []string) {
 		}
 	}
 
-	fmt.Println("After", currentCycle, "cycles, here are the secret 8 letters")
 	printScreen(screen)
 }
 
