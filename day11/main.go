@@ -146,8 +146,18 @@ func getLevelOfMonkeyBusiness(monkeys []Monkey) int {
 	return monkeyBusiness
 }
 
+func getSuperMod(monkeys []Monkey) int {
+	// Still don't get this part but, thanks to Reddit
+	result := 1
+	for _, monkey := range monkeys {
+		result *= monkey.test
+	}
+	return result
+}
+
 func partOneOrPartTwo(monkeys []Monkey, rounds int, isWorried bool) int {
 	monkeyBusiness := 0
+	superMod := getSuperMod(monkeys)
 
 	for i := 1; i <= rounds; i++ {
 		for index, monkey := range monkeys {
@@ -155,6 +165,8 @@ func partOneOrPartTwo(monkeys []Monkey, rounds int, isWorried bool) int {
 				new_value := performOperation(item, monkey.operation)
 				if isWorried {
 					new_value /= 3
+				} else {
+					new_value %= superMod
 				}
 				if (new_value % monkey.test) == 0 {
 					monkeys[monkey.ifTrue].startingItems = append(monkeys[monkey.ifTrue].startingItems, new_value)
@@ -164,13 +176,6 @@ func partOneOrPartTwo(monkeys []Monkey, rounds int, isWorried bool) int {
 				monkeys[index].inspectCount += 1
 			}
 			monkeys[index].startingItems = nil
-		}
-
-		if i == 1 || i == 20 || i == 1000 || i == 2000 || i == 3000 || i == 4000 || i == 5000 || i == 6000 || i == 7000 || i == 8000 || i == 9000 || i == 10000 {
-			fmt.Println("After round", i)
-			for _, monkey := range monkeys {
-				fmt.Println("Monkey", monkey.id, "inspected items", monkey.inspectCount)
-			}
 		}
 	}
 
@@ -183,5 +188,6 @@ func main() {
 
 	monkeys := parseData(data)
 	fmt.Println(partOneOrPartTwo(monkeys, 20, true))
-	// fmt.Println(partOneOrPartTwo(monkeys, 10000, false))
+	monkeys = parseData(data)
+	fmt.Println(partOneOrPartTwo(monkeys, 10000, false))
 }
