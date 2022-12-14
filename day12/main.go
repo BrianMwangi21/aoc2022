@@ -100,13 +100,6 @@ func isMoveValid(from Coords, to Coords, landscape [][]int) bool {
 	return toVal <= fromVal+1
 }
 
-func isPointOfInterest(c Coords, pointOfInterest Coords) bool {
-	if c.row == pointOfInterest.row && c.col == pointOfInterest.col {
-		return true
-	}
-	return false
-}
-
 func initializeDistances(landscape [][]int) [][]int {
 	var distances [][]int
 
