@@ -1,228 +1,170 @@
 package main
 
 import (
-	_ "embed"
 	"fmt"
-	"math"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 )
 
-//go:embed input.test.txt
-var input string
+var valveregexp = regexp.MustCompile(`([A-Z]{2}).*=(\d+);.*?((?:[A-Z]{2}(?:, )?)+)`)
 
 type valve struct {
-	flowRate  int
-	connected []string
+	Name  string
+	Rate  uint16
+	Edges string
+}
+
+func parse() ([]*valve, error) {
+	buf, err := os.ReadFile("./input.txt")
+	if err != nil {
+		return nil, fmt.Errorf("could not read input: %w", err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(buf)), "\n")
+	valves := make([]*valve, len(lines))
+	for idx, line := range lines {
+		m := valveregexp.FindStringSubmatch(line)
+		i, _ := strconv.Atoi(m[2])
+		valves[idx] = &valve{Name: m[1], Rate: uint16(i), Edges: m[3]}
+	}
+	return valves, nil
+}
+
+func floydWarshall(valves []*valve) map[*valve]map[*valve]uint16 {
+	graph := make(map[*valve]map[*valve]uint16)
+	for _, v1 := range valves {
+		graph[v1] = make(map[*valve]uint16)
+		for _, v2 := range valves {
+			if v1 == v2 {
+				graph[v1][v2] = 0
+			} else if strings.Contains(v1.Edges, v2.Name) {
+				graph[v1][v2] = 1
+			} else {
+				graph[v1][v2] = 0xff
+			}
+		}
+	}
+
+	for _, k := range valves {
+		for _, i := range valves {
+			for _, j := range valves {
+				if graph[i][j] > graph[i][k]+graph[k][j] {
+					graph[i][j] = graph[i][k] + graph[k][j]
+				}
+			}
+		}
+	}
+
+	return graph
 }
 
 func main() {
-	input = strings.TrimSpace(input)
-
-	valves := make(map[string]valve)
-
-	for _, row := range strings.Split(input, "\n") {
-		parts := strings.Split(row, " ")
-		name := parts[1]
-		flowRate := intsInString(row)[0]
-		valv := strings.Split(row, "to")
-		aa := strings.TrimPrefix(valv[1], " valves ")
-		aa = strings.TrimPrefix(aa, " valve ")
-		vv := strings.Split(aa, ", ")
-		valves[name] = valve{flowRate, vv}
+	valves, err := parse()
+	if err != nil {
+		panic(err)
 	}
 
-	openValveIdx := make(map[string]int)
-	idx := 0
-	for k, v := range valves {
-		if v.flowRate > 0 {
-			openValveIdx[k] = idx
-			idx++
+	graph := floydWarshall(valves)
+
+	// pick valves with flow and starting point
+	var worthit []*valve
+	for _, v := range valves {
+		if v.Rate > 0 || v.Name == "AA" {
+			worthit = append(worthit, v)
 		}
 	}
 
-	t0 := time.Now()
-	fmt.Println("part1", part1(valves, openValveIdx), time.Since(t0))
-	fmt.Println("part2", part2(valves, openValveIdx), time.Since(t0))
-}
-
-type move struct {
-	at      string
-	newOpen string
-	addFlow int
-}
-
-func moves(open uint16, at string, valves map[string]valve, openValveIdx map[string]int) []move {
-	var res []move
-	var allTrue uint16 = math.MaxUint16
-	isOpen := open&(1<<openValveIdx[at]) > 0
-	if open == allTrue {
-		res = append(res, move{at: at})
-	} else {
-		if !isOpen && valves[at].flowRate > 0 {
-			res = append(res, move{at, at, valves[at].flowRate})
-		}
-		if isOpen || valves[at].flowRate == 0 {
-			for _, v := range valves[at].connected {
-				res = append(res, move{at: v})
-			}
-		}
-	}
-	return res
-}
-
-func part1(valves map[string]valve, openValveIdx map[string]int) int {
-	type qi struct {
-		open    uint16
-		at      string
-		minute  int
-		flow    int
-		sumflow int
+	// assign bits
+	bitfield := make(map[*valve]uint16)
+	for idx, v := range worthit {
+		bitfield[v] = 1 << idx
 	}
 
-	Q := []qi{{at: "AA", minute: 1}}
-	var largestFlow int
-	seen := make(map[string]map[uint16]int)
-
-nextQ:
-	for {
-		if len(Q) == 0 {
+	// find start
+	var start uint16
+	for _, v := range worthit {
+		if v.Name == "AA" {
+			start = bitfield[v]
 			break
 		}
-		q := Q[0]
-		Q = Q[1:]
+	}
 
-		if q.minute > 30 {
-			largestFlow = max(largestFlow, q.sumflow)
-			continue
-		}
-
-		if seens, ok := seen[q.at]; !ok {
-			seen[q.at] = make(map[uint16]int)
-		} else {
-			for k, v := range seens {
-				if v >= q.sumflow {
-					if k == q.open || k&q.open > 0 {
-						continue nextQ
-					}
-				}
-			}
-		}
-		seen[q.at][q.open] = q.sumflow
-
-		moves := moves(q.open, q.at, valves, openValveIdx)
-		for _, m := range moves {
-			o := q.open
-			if m.newOpen != "" {
-				o = o | (1 << openValveIdx[m.newOpen])
-			}
-			Q = append(Q, qi{
-				at:      m.at,
-				open:    o,
-				minute:  q.minute + 1,
-				flow:    q.flow + m.addFlow,
-				sumflow: q.sumflow + q.flow,
-			})
+	// create slice for fast edge lookup
+	bitgraphsl := make([]uint16, 0xffff)
+	for _, v1 := range worthit {
+		for _, v2 := range worthit {
+			bitgraphsl[bitfield[v1]|bitfield[v2]] = graph[v1][v2]
 		}
 	}
 
-	return largestFlow
-}
-
-func part2(valves map[string]valve, openValveIdx map[string]int) int {
-	type qi struct {
-		open    uint16
-		ats     [2]string
-		minute  int
-		flow    int
-		sumflow int
+	// create slice for fast node lookup
+	worthbitsl := make([][2]uint16, len(worthit))
+	for idx, v := range worthit {
+		worthbitsl[idx] = [2]uint16{bitfield[v], v.Rate}
 	}
 
-	Q := []qi{{ats: [2]string{"AA", "AA"}, minute: 1}}
-	var largestFlow int
-	seen := make(map[[2]string]map[uint16]int)
-
-nextQ:
-	for {
-		if len(Q) == 0 {
-			break
-		}
-		q := Q[0]
-		Q = Q[1:]
-
-		if q.minute > 26 {
-			largestFlow = max(largestFlow, q.sumflow)
-			continue
-		}
-
-		if seens, ok := seen[q.ats]; !ok {
-			seen[q.ats] = make(map[uint16]int)
-		} else {
-			for k, v := range seens {
-				if v >= q.sumflow {
-					if k == q.open || k&q.open > 0 {
-						continue nextQ
-					}
-				}
+	// part 1
+	var dfs func(target, pressure, minute, on, node uint16) uint16
+	dfs = func(target, pressure, minute, on, node uint16) uint16 {
+		max := pressure
+		for _, w := range worthbitsl {
+			if node == w[0] || w[0] == start || w[0]&on != 0 {
+				continue
+			}
+			l := bitgraphsl[node|w[0]] + 1
+			if minute+l > target {
+				continue
+			}
+			if next := dfs(target, pressure+(target-minute-l)*w[1], minute+l, on|w[0], w[0]); next > max {
+				max = next
 			}
 		}
-		seen[q.ats][q.open] = q.sumflow
+		return max
+	}
 
-		var candos [2][]move
-		for idx := 0; idx < 2; idx++ {
-			candos[idx] = moves(q.open, q.ats[idx], valves, openValveIdx)
+	part1 := dfs(30, 0, 0, 0, start)
+	fmt.Println("Answer 1:", part1)
+
+	// part 2
+	var dfspaths func(target, pressure, minute, on, node, path uint16) [][2]uint16
+	dfspaths = func(target, pressure, minute, on, node, path uint16) [][2]uint16 {
+		paths := [][2]uint16{{pressure, path}}
+		for _, w := range worthbitsl {
+			if w[0] == node || w[0] == start || w[0]&on != 0 {
+				continue
+			}
+			l := bitgraphsl[node|w[0]] + 1
+			if minute+l > target {
+				continue
+			}
+			paths = append(paths, dfspaths(target, pressure+(target-minute-l)*w[1], minute+l, on|w[0], w[0], path|w[0])...)
 		}
+		return paths
+	}
 
-		for _, you := range candos[0] {
-			for _, ele := range candos[1] {
-				if you.newOpen != "" && you.newOpen == ele.newOpen {
-					continue
-				}
-				open := q.open
-				if you.newOpen != "" {
-					open |= 1 << openValveIdx[you.newOpen]
-				}
-				if ele.newOpen != "" {
-					open |= 1 << openValveIdx[ele.newOpen]
-				}
+	allpaths := dfspaths(26, 0, 0, 0, start, 0)
 
-				// sort ats ===== speed
-				var at [2]string
-				if you.at < ele.at {
-					at = [2]string{you.at, ele.at}
-				} else {
-					at = [2]string{ele.at, you.at}
-				}
+	// reduce paths (presumably, both paths are at least half of part 1)
+	var trimpaths [][2]uint16
+	for _, p := range allpaths {
+		if p[0] > part1/2 {
+			trimpaths = append(trimpaths, p)
+		}
+	}
 
-				Q = append(Q, qi{
-					ats:     at,
-					minute:  q.minute + 1,
-					flow:    q.flow + you.addFlow + ele.addFlow,
-					sumflow: q.sumflow + q.flow,
-					open:    open,
-				})
+	// compare all paths to find max
+	var max uint16 = 0
+	for idx := 0; idx < len(trimpaths); idx += 1 {
+		for jdx := idx + 1; jdx < len(trimpaths); jdx += 1 {
+			if trimpaths[idx][1]&trimpaths[jdx][1] != 0 {
+				continue
+			}
+			if m := trimpaths[idx][0] + trimpaths[jdx][0]; m > max {
+				max = m
 			}
 		}
 	}
 
-	return largestFlow
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-func intsInString(s string) []int {
-	re := regexp.MustCompile(`-?\d+`)
-	matches := re.FindAllString(s, -1)
-	res := make([]int, len(matches))
-	for i, m := range matches {
-		res[i], _ = strconv.Atoi(m)
-	}
-	return res
+	fmt.Println("Answer 2:", max)
 }
